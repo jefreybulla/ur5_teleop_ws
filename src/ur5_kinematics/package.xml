@@ -7,6 +7,7 @@
   <maintainer email="jefrey.bulla@gmail.com">jb</maintainer>
   <license>TODO: License declaration</license>
 
+  <depend>python3-numpy</depend>
   <depend>rclpy</depend>
   <depend>sensor_msgs</depend>
 

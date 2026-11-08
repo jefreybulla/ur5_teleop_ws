@@ -24,6 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'forward_kinematics_demo = ur5_kinematics.forward_kinematics_demo:main',
             'joint_state_demo = ur5_kinematics.joint_state_demo:main',
         ],
     },
