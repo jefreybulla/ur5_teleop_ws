@@ -35,5 +35,8 @@ ros2 launch ur_description view_ur.launch.py ur_type:=ur5
 While visualization is open in another terminal window, run the following to obtain the forward kinematics from TF:
 
 ```bash
+
+<img width="414" height="498" alt="image" src="https://github.com/user-attachments/assets/5f47ca06-ed86-4d60-b0b7-64f357d75d68" />
+
 ros2 run tf2_ros tf2_echo base tool0
 ```
