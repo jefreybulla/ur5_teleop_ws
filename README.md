@@ -28,6 +28,8 @@ ros2 run ur5_kinematics forward_kinematics_demo
 
 ## Launch UR5 model in RViz 2
 
+The `ur_description`, `joint_state_publisher_gui`, `robot_state_publisher` and `rviz2` packages are declared in `ur5_kinematics/package.xml`, so the `rosdep install` step above installs them automatically.
+
 ```bash
 ros2 launch ur_description view_ur.launch.py ur_type:=ur5
 ```
