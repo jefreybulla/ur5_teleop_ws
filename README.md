@@ -61,6 +61,9 @@ In RViz, add displays if needed:
 - **Path** — topic `/resolved_rates/tool_path`
 - **Marker** — topic `/resolved_rates/goal_marker` (green sphere at the IK goal)
 
+<img width="492" height="486" alt="Screenshot 2026-11-14 000921" src="https://github.com/user-attachments/assets/71f88512-1936-4ece-b001-24e67e83facd" />
+
+
 ## Launch UR5 model in RViz 2
 ```bash
 ros2 launch ur_description view_ur.launch.py ur_type:=ur5
@@ -72,5 +75,4 @@ While visualization is open in another terminal window, run the following to obt
 ros2 run tf2_ros tf2_echo base tool0
 ```
 
-<img width="414" height="498" alt="image" src="https://github.com/user-attachments/assets/5f47ca06-ed86-4d60-b0b7-64f357d75d68" />
 
