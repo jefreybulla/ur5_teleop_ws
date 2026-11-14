@@ -26,6 +26,41 @@ Run forward kinematics demo:
 ros2 run ur5_kinematics forward_kinematics_demo
 ```
 
+## Online resolved-rates demo in RViz 2
+This implementation uses our own FK and IK algorithm. 
+
+Tested using two terminals: RViz stays open, restart motion by re-running servo.
+
+**Terminal 1** — robot model and RViz (`launch_servo` defaults to `false`). A small **idle** node publishes `HOME_Q` on `/joint_states` so the arm displays in RViz before you start motion:
+
+```bash
+ros2 launch ur5_kinematics resolved_rates_demo.launch.py
+```
+
+**Terminal 2** — resolved-rates servo. This stops the idle publisher and takes over `/joint_states`:
+
+```bash
+ros2 run ur5_kinematics resolved_rates_demo
+```
+
+Stop terminal 2 with Ctrl+C and run the same command again to replay without closing RViz.
+
+One-terminal all-in-one (optional):
+```bash
+ros2 launch ur5_kinematics resolved_rates_demo.launch.py launch_servo:=true
+```
+
+To test your own end effector goal:
+```bash
+ros2 run ur5_kinematics resolved_rates_demo --ros-args \
+  -p use_goal_position_param:=true \
+  -p goal_position:="[-0.447, -0.191, 0.629]"
+```
+
+In RViz, add displays if needed:
+- **Path** — topic `/resolved_rates/tool_path`
+- **Marker** — topic `/resolved_rates/goal_marker` (green sphere at the IK goal)
+
 ## Launch UR5 model in RViz 2
 ```bash
 ros2 launch ur_description view_ur.launch.py ur_type:=ur5

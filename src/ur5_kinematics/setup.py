@@ -1,3 +1,6 @@
+import os
+from glob import glob
+
 from setuptools import find_packages, setup
 
 package_name = 'ur5_kinematics'
@@ -10,6 +13,7 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        (os.path.join('share', package_name, 'launch'), glob('launch/*.py')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -26,6 +30,8 @@ setup(
         'console_scripts': [
             'forward_kinematics_demo = ur5_kinematics.forward_kinematics_demo:main',
             'joint_state_demo = ur5_kinematics.joint_state_demo:main',
+            'resolved_rates_demo = ur5_kinematics.resolved_rates_demo:main',
+            'joint_state_idle = ur5_kinematics.joint_state_idle:main',
         ],
     },
 )
