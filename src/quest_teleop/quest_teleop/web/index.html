@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>UR5 Quest Teleop — controller pose streamer</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font: 15px/1.45 system-ui, sans-serif; margin: 0; padding: 24px; background: #111; color: #ddd; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #888; margin-bottom: 18px; }
+  button { font-size: 17px; padding: 12px 20px; margin: 0 10px 10px 0; border-radius: 8px;
+           border: 1px solid #555; background: #2a2a2a; color: #eee; cursor: pointer; }
+  button:disabled { opacity: .4; cursor: default; }
+  table { border-collapse: collapse; margin-top: 12px; }
+  td { padding: 3px 12px 3px 0; vertical-align: top; }
+  td:first-child { color: #888; }
+  .ok { color: #6c6; } .bad { color: #e66; } .warn { color: #db5; }
+  pre { background: #1b1b1b; padding: 10px; border-radius: 6px; font-size: 13px; }
+  .hint { color: #888; font-size: 13px; max-width: 760px; }
+</style>
+</head>
+<body>
+<h1>UR5 Quest Teleop</h1>
+<div class="sub">Streams Meta Quest controller 6-DoF pose + buttons to ROS 2 over WebSocket.</div>
+
+<button id="btnAR" disabled>Start AR (passthrough)</button>
+<button id="btnVR" disabled>Start VR</button>
+
+<table>
+  <tr><td>WebSocket</td><td id="ws" class="bad">connecting…</td></tr>
+  <tr><td>WebXR</td><td id="xr">checking…</td></tr>
+  <tr><td>Session</td><td id="sess">none</td></tr>
+  <tr><td>Frames sent</td><td id="frames">0</td></tr>
+  <tr><td>Send rate</td><td id="rate">–</td></tr>
+  <tr><td>Round trip</td><td id="rtt">–</td></tr>
+</table>
+
+<pre id="pose">no controller pose yet</pre>
+
+<p class="hint">
+  Inside the headset the view is tinted: <b>green</b> = squeeze (grip) held on the right controller
+  (clutch engaged, robot follows), <b>red</b> = WebSocket disconnected (robot will not move).
+  Poses are sent in WebXR axes (x right, y up, z back); the ROS bridge converts them to REP-103.
+</p>
+
+<script>
+'use strict';
+
+// ------------------------------------------------------------------ WebSocket
+let ws = null;
+let wsOpen = false;
+let lastRtt = null;
+const $ = (id) => document.getElementById(id);
+
+function connectWs() {
+  const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${scheme}://${location.host}/ws`);
+  ws.onopen = () => { wsOpen = true; setStatus('ws', 'connected', 'ok'); };
+  ws.onclose = () => {
+    wsOpen = false; setStatus('ws', 'disconnected — retrying', 'bad');
+    setTimeout(connectWs, 1000);
+  };
+  ws.onerror = () => {};
+  ws.onmessage = (ev) => {
+    const m = JSON.parse(ev.data);
+    if (m.type === 'pong' && typeof m.t === 'number') {
+      lastRtt = performance.now() - m.t;
+      $('rtt').textContent = `${lastRtt.toFixed(1)} ms`;
+    }
+  };
+}
+function send(obj) { if (wsOpen) ws.send(JSON.stringify(obj)); }
+setInterval(() => send({ type: 'ping', t: performance.now() }), 500);
+
+function setStatus(id, text, cls) { const el = $(id); el.textContent = text; el.className = cls || ''; }
+
+// ------------------------------------------------------------------ WebXR
+let session = null, refSpace = null, gl = null, refSpaceType = '';
+let seq = 0, framesSent = 0, rateCount = 0, rateT0 = performance.now();
+let lastPoseText = 0;
+
+const arr3 = (v) => [v.x, v.y, v.z];
+const arr4 = (q) => [q.x, q.y, q.z, q.w];
+const poseObj = (pose) => ({ p: arr3(pose.transform.position), q: arr4(pose.transform.orientation) });
+
+async function initXR() {
+  if (!navigator.xr) { setStatus('xr', 'not available (use Quest Browser or the Immersive Web Emulator)', 'bad'); return; }
+  if (!window.isSecureContext) { setStatus('xr', 'page is not a secure context — use https:// or localhost', 'bad'); return; }
+  const [ar, vr] = await Promise.all([
+    navigator.xr.isSessionSupported('immersive-ar').catch(() => false),
+    navigator.xr.isSessionSupported('immersive-vr').catch(() => false),
+  ]);
+  $('btnAR').disabled = !ar; $('btnVR').disabled = !vr;
+  setStatus('xr', `immersive-ar: ${ar ? 'yes' : 'no'}, immersive-vr: ${vr ? 'yes' : 'no'}`, (ar || vr) ? 'ok' : 'bad');
+}
+
+async function startSession(mode) {
+  if (session) return;
+  try {
+    session = await navigator.xr.requestSession(mode, { optionalFeatures: ['local-floor'] });
+  } catch (e) {
+    setStatus('sess', `failed to start ${mode}: ${e.message}`, 'bad'); session = null; return;
+  }
+  const canvas = document.createElement('canvas');
+  gl = canvas.getContext('webgl', { xrCompatible: true, alpha: true });
+  // xrCompatible:true at creation normally suffices; makeXRCompatible is a fallback.
+  try { await gl.makeXRCompatible(); } catch (e) { console.warn('makeXRCompatible:', e.message); }
+  try {
+    session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
+    try { refSpace = await session.requestReferenceSpace('local-floor'); refSpaceType = 'local-floor'; }
+    catch { refSpace = await session.requestReferenceSpace('local'); refSpaceType = 'local'; }
+  } catch (e) {
+    setStatus('sess', `session setup failed: ${e.message}`, 'bad');
+    send({ type: 'log', msg: `session setup failed: ${e.message}` });
+    session.end(); session = null; return;
+  }
+  session.addEventListener('end', () => { session = null; setStatus('sess', 'ended'); });
+  setStatus('sess', `${mode} (${refSpaceType})`, 'ok');
+  send({ type: 'log', msg: `session started: ${mode}, ref space ${refSpaceType}` });
+  session.requestAnimationFrame(onXRFrame);
+}
+
+function controllerObj(frame, src) {
+  if (!src.gripSpace) return null;  // hand tracking without a controller
+  const grip = frame.getPose(src.gripSpace, refSpace);
+  if (!grip) return null;
+  const c = { grip: poseObj(grip) };
+  if (src.targetRaySpace) {
+    const aim = frame.getPose(src.targetRaySpace, refSpace);
+    if (aim) c.aim = poseObj(aim);
+  }
+  if (grip.linearVelocity) c.lin_vel = arr3(grip.linearVelocity);
+  if (grip.angularVelocity) c.ang_vel = arr3(grip.angularVelocity);
+  if (src.gamepad) {
+    c.buttons = Array.from(src.gamepad.buttons, (b) => [b.pressed, b.value]);
+    c.axes = Array.from(src.gamepad.axes);
+  }
+  return c;
+}
+
+function onXRFrame(t, frame) {
+  const s = frame.session;
+  s.requestAnimationFrame(onXRFrame);
+
+  const msg = { type: 'pose', seq: seq++, t_client_ms: performance.now(), rtt_ms: lastRtt,
+                ref_space: refSpaceType, controllers: {} };
+  const viewer = frame.getViewerPose(refSpace);
+  if (viewer) msg.head = poseObj(viewer);
+  for (const src of s.inputSources) {
+    if (src.handedness !== 'left' && src.handedness !== 'right') continue;
+    const c = controllerObj(frame, src);
+    if (c) msg.controllers[src.handedness] = c;
+  }
+  if (Object.keys(msg.controllers).length > 0) {
+    send(msg);
+    if (wsOpen) { framesSent++; rateCount++; }
+  }
+
+  // In-headset feedback via a tint (no text rendering needed).
+  const right = msg.controllers.right;
+  const clutch = right && right.buttons && right.buttons[1] && right.buttons[1][0];
+  const isAR = s.environmentBlendMode && s.environmentBlendMode !== 'opaque';
+  const layer = s.renderState.baseLayer;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
+  if (!wsOpen) gl.clearColor(0.5, 0.0, 0.0, isAR ? 0.35 : 1.0);
+  else if (clutch) gl.clearColor(0.0, 0.4, 0.0, isAR ? 0.25 : 1.0);
+  else gl.clearColor(0.08, 0.08, 0.08, isAR ? 0.0 : 1.0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+
+  updatePanel(msg);
+}
+
+function updatePanel(msg) {
+  const now = performance.now();
+  if (now - rateT0 >= 1000) {
+    $('rate').textContent = `${(rateCount * 1000 / (now - rateT0)).toFixed(1)} Hz`;
+    rateCount = 0; rateT0 = now;
+  }
+  $('frames').textContent = framesSent;
+  if (now - lastPoseText < 100) return;
+  lastPoseText = now;
+  const lines = [];
+  for (const hand of ['right', 'left']) {
+    const c = msg.controllers[hand];
+    if (!c) { lines.push(`${hand}: not tracked`); continue; }
+    const f = (a) => a.map((v) => (v >= 0 ? '+' : '') + v.toFixed(3)).join(' ');
+    const btn = c.buttons ? `trigger ${c.buttons[0][1].toFixed(2)}  grip ${c.buttons[1][1].toFixed(2)}` : '';
+    lines.push(`${hand}: p [${f(c.grip.p)}] m  q [${f(c.grip.q)}]  ${btn}`);
+  }
+  $('pose').textContent = lines.join('\n');
+}
+
+$('btnAR').onclick = () => startSession('immersive-ar');
+$('btnVR').onclick = () => startSession('immersive-vr');
+connectWs();
+initXR();
+</script>
+</body>
+</html>
