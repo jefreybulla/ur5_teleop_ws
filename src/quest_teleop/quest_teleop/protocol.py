@@ -81,6 +81,15 @@ def _pose(d: Optional[dict]) -> Optional[Pose]:
     return Pose(p=xr_position_to_ros(d['p']), q=xr_quat_to_ros(d['q']))
 
 
+def _num(x, default: float = 0.0) -> float:
+    """Float that tolerates null/NaN (JSON.stringify turns NaN into null; the emulator sends some)."""
+    try:
+        v = float(x)
+    except (TypeError, ValueError):
+        return default
+    return v if np.isfinite(v) else default
+
+
 def _vec(v) -> Optional[np.ndarray]:
     if v is None:
         return None
@@ -104,8 +113,8 @@ def parse_frame(msg: dict) -> QuestFrame:
             lin_vel=_vec(c.get('lin_vel')),
             ang_vel=_vec(c.get('ang_vel')),
             buttons_pressed=[bool(b[0]) for b in buttons],
-            buttons_value=[float(b[1]) for b in buttons],
-            axes=[float(a) for a in (c.get('axes') or [])],
+            buttons_value=[_num(b[1]) for b in buttons],
+            axes=[_num(a) for a in (c.get('axes') or [])],
         )
     rtt = msg.get('rtt_ms')
     return QuestFrame(

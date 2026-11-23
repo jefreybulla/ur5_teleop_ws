@@ -83,8 +83,11 @@ class PoseServer:
                 elif kind == 'pose':
                     try:
                         frame = parse_frame(data)
-                    except (ValueError, KeyError, TypeError, IndexError):
+                    except (ValueError, KeyError, TypeError, IndexError) as exc:
                         self.bad_frames += 1
+                        # Don't fail silently: log the first rejected frame and then every 200th.
+                        if self.bad_frames == 1 or self.bad_frames % 200 == 0:
+                            self._log(f'rejected pose frame #{self.bad_frames}: {exc!r}')
                         continue
                     self.frames_received += 1
                     self._on_frame(frame)

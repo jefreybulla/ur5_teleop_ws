@@ -134,6 +134,19 @@ def test_home_pose_singularity_check():
     assert w(teleop_home) > 1e-3
 
 
+# ------------------------------------------------------------------ protocol
+def test_parse_frame_tolerates_null_button_values_and_axes():
+    """The Immersive Web Emulator can send null (NaN) button values / axes."""
+    from quest_teleop.protocol import parse_frame
+    msg = {'type': 'pose', 'seq': 1, 't_client_ms': 1.0, 'rtt_ms': None, 'ref_space': 'local-floor',
+           'controllers': {'right': {
+               'grip': {'p': [0.0, 1.0, 0.0], 'q': [0.0, 0.0, 0.0, 1.0]},
+               'buttons': [[False, None], [True, 1.0]], 'axes': [None, 0.0, 0.5, None]}}}
+    c = parse_frame(msg).controllers['right']
+    assert c.value(0) == 0.0 and c.pressed(1) and c.value(1) == 1.0
+    assert c.axes == [0.0, 0.0, 0.5, 0.0]
+
+
 # ------------------------------------------------------------------ server
 def _free_port():
     s = socket.socket()

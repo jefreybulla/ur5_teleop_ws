@@ -94,6 +94,14 @@ async function initXR() {
   ]);
   $('btnAR').disabled = !ar; $('btnVR').disabled = !vr;
   setStatus('xr', `immersive-ar: ${ar ? 'yes' : 'no'}, immersive-vr: ${vr ? 'yes' : 'no'}`, (ar || vr) ? 'ok' : 'bad');
+  return ar || vr;
+}
+
+// The Immersive Web Emulator registers its virtual headset slightly after page load,
+// so the first check can say "no". Re-check on 'devicechange' and retry for a few seconds.
+function watchXR() {
+  if (navigator.xr && navigator.xr.addEventListener) navigator.xr.addEventListener('devicechange', initXR);
+  [500, 1500, 3500].forEach((ms) => setTimeout(() => { if (!session) initXR(); }, ms));
 }
 
 async function startSession(mode) {
@@ -196,6 +204,7 @@ $('btnAR').onclick = () => startSession('immersive-ar');
 $('btnVR').onclick = () => startSession('immersive-vr');
 connectWs();
 initXR();
+watchXR();
 </script>
 </body>
 </html>
