@@ -35,11 +35,30 @@ WebXR's own axes (x right, y up, z back) are converted in `frames.py`.
 
 ## Build
 
+Dependencies: ROS 2 Jazzy, `python3-aiohttp` (`rosdep install --from-paths src --ignore-src -y`,
+or `sudo apt install python3-aiohttp`).
+
+**Using a Python venv instead of apt** (what we did in the lab): create one shared venv that
+can still see ROS, install aiohttp there, and run colcon *through the venv's Python*.
+Plain `colcon` has a `/usr/bin/python3` shebang, so it ignores an active venv; both the test
+runner and the generated node scripts would then miss aiohttp.
+
 ```bash
-sudo apt install python3-aiohttp        # or: rosdep install --from-paths src --ignore-src -y
-colcon build --symlink-install
+# once
+/usr/bin/python3 -m venv --system-site-packages ~/.venvs/ros2-jazzy
+~/.venvs/ros2-jazzy/bin/pip install aiohttp
+
+# every new terminal (order matters)
+source /opt/ros/jazzy/setup.bash                 # usually already in ~/.bashrc
+source ~/.venvs/ros2-jazzy/bin/activate
+cd ~/Workspaces/ur5_teleop_ws                    # workspace root
+python3 -m colcon build --symlink-install        # NOT plain `colcon build`
 source install/setup.bash
+ros2 pkg executables quest_teleop                # fake_quest, pose_server, quest_bridge, quest_teleop
 ```
+
+With apt-installed aiohttp the usual `colcon build --symlink-install` is enough.
+Do not use a venv that was created without `--system-site-packages` (it cannot import `rclpy`).
 
 ## 1. Test with no headset at all (fake_quest)
 
@@ -50,18 +69,39 @@ ros2 launch quest_teleop quest_teleop_sim.launch.py
 ros2 run quest_teleop fake_quest
 ```
 
-In RViz add a **Pose** display on `/quest_teleop/goal_pose` and a **TF**
-display. The tool should trace a 10 cm circle.
+The UR5 in RViz follows the synthetic controller: the tool traces a 10 cm circle and pauses
+for about 1 s every 6 s while the squeeze is released. The bridge log reports
+`72.0 Hz from Quest, 0 seq gaps, bad msgs total 0` and the teleop node logs
+`Clutch released` / `Clutch engaged`. Optional: in RViz add a **Pose** display on
+`/quest_teleop/goal_pose` (Add > By topic) and a **TF** display to see the target.
+
+Quick numeric check (second terminal, env sourced): `ros2 topic hz /quest/right/pose` is about
+72 Hz, `/joint_states` is published by `quest_teleop` at 50 Hz, and `/quest_teleop/metrics`
+(`[pos error m, rot error rad, manipulability]`) shows a position error of about 0.006-0.007 m
+while the clutch is held.
 
 ## 2. Test the real page with the emulator (no headset)
 
-1. Install **Immersive Web Emulator** (by Meta) in Chrome or Edge.
-2. `ros2 launch quest_teleop quest_teleop_sim.launch.py`
-3. Open `http://localhost:8080/` and enable the emulator for the page (device: Meta Quest 3).
-4. Click **Start VR** (or **Start AR**). In the emulator panel, select the right
-   controller, hold **grip**, and drag/rotate it with the 3D gizmo.
-5. Check: `ros2 topic echo /quest/right/pose`, and the arm moves in RViz.
+Tested with **Immersive Web Emulator v2.0** (Meta) in Chrome. Stop `fake_quest` first; the
+emulator takes its place.
 
+1. Install **Immersive Web Emulator** from the Chrome Web Store and pin it to the toolbar.
+2. `ros2 launch quest_teleop quest_teleop_sim.launch.py`
+3. Open `http://localhost:8080/`. Click the extension button so its popup says
+   **"Emulating WebXR on this site"** (v2 enables emulation per site). In DevTools (F12) >
+   **WebXR** tab set **Device = MetaQuest3**, **Input Mode = Controller**, then reload the page.
+   The page's WebXR line must read `immersive-ar: yes, immersive-vr: yes`; the
+   **Start VR** button is greyed out until then.
+   (The popup's "AI Agent / MCP" section is optional and not needed.)
+4. Click **Start VR**. A floating overlay shows **Controller [L]** and **Controller [R]** panels.
+5. On **Controller [R]** set **Grip = 1.00** and click the **pin** icon next to it to latch it
+   (the page turns **green**: clutch engaged). Squeezing alone does not move the arm.
+6. Change the right controller's **Pos** X / Y / Z, or drag the 3D gizmo. The arm in RViz follows
+   the *relative* motion. To clutch (reposition without moving the arm), set Grip back to 0 (or
+   unpin it), move the controller, then latch the grip again.
+7. Check: `ros2 topic hz /quest/right/pose` (about 60-72 Hz) and `ros2 topic echo /quest/right/pose --field pose.position`.
+
+Axes: controller -Z (forward) becomes ROS +x, controller +X (right) becomes ROS -y, +Y is up.
 `http://localhost` counts as a secure context, so no certificate is needed here.
 
 ## 3. Real Quest 3 in the lab
@@ -114,14 +154,32 @@ capped by `v_max`/`w_max`; per-joint step capped by `max_joint_speed`.
 Keep a hand on the teach-pendant e-stop. Confirm the command topic and
 controller name match the course-provided driver config.
 
-## Headless tests (no ROS needed)
+## Tests
 
 ```bash
-PYTHONPATH=src/quest_teleop:src/ur5_kinematics python3 -m pytest src/quest_teleop/test
+# headless pytest (with the ros2-jazzy venv active; keep the PYTHONPATH from sourcing ROS)
+PYTHONPATH=src/quest_teleop:src/ur5_kinematics python3 -m pytest src/quest_teleop/test -v
+
+# full colcon run incl. flake8 / pep257 lint (use the venv's Python, see Build)
+python3 -m colcon test --packages-select quest_teleop ur5_kinematics
+colcon test-result --verbose
 ```
 
-Covers frame conversion, clutch mapping, workspace clamping, a closed-loop
-resolved-rates tracking test, and an end-to-end WebSocket test with `fake_quest`.
+14 tests: frame conversion, clutch mapping, workspace clamping, a closed-loop
+resolved-rates tracking test, parser tolerance for null/NaN values, and an end-to-end
+WebSocket test with `fake_quest`. `colcon test` on both packages reports 17 tests
+(14 here + 3 flake8/pep257/copyright tests of `ur5_kinematics`, of which copyright is skipped).
+
+## Troubleshooting
+
+| Symptom | Cause / fix |
+|---|---|
+| `ModuleNotFoundError: No module named 'aiohttp'` in `colcon test` or `ros2 run` | colcon ran with the system Python. Use the venv and `python3 -m colcon build/test`, or install `python3-aiohttp`. |
+| Page says `immersive-vr: no`, **Start VR** greyed out | Emulator not enabled for the site. Enable it from the toolbar popup, set the device in DevTools > WebXR, reload. The page re-checks for a few seconds after load. |
+| Page streams, but no `/quest/*` topics and the bridge says `No controller data` | Check the bridge log for `rejected pose frame #N: ...`. The node log is also in `~/.ros/log/python3_<pid>_*.log`. (Fixed: the emulator sends null/NaN for some button/axis values.) |
+| Grip is 1.00 and the page is green, but the arm does not move | The arm follows controller *motion* while the clutch is engaged. Change the controller `Pos` (or drag the gizmo) with the grip latched. |
+| RViz crashes with `/snap/core20/.../libpthread.so.0: undefined symbol __libc_pthread_init` | Snap library conflict when launched from a snap-based shell (e.g. the VS Code terminal). Launch from a normal terminal. |
+| `colcon test` for `ur5_kinematics` fails on flake8 / pep257 | Fixed in this branch (style-only commit). |
 
 ## Notes
 
