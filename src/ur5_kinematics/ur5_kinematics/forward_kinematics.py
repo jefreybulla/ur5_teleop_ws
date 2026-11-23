@@ -65,15 +65,23 @@ def rotm_to_axang(R: np.ndarray) -> np.ndarray:
 def ur5_dirkin(
     q: Sequence[float],
 ) -> Tuple[float, float, float, np.ndarray, np.ndarray]:
-    """Direct kinematics for the Universal Robots UR5.
+    """
+    Direct kinematics for the Universal Robots UR5.
 
-    Args:
-        q: Six joint angles [rad].
+    Parameters
+    ----------
+    q : Sequence[float]
+        Six joint angles [rad].
 
-    Returns:
-        x, y, z: End-effector position in the base frame [m].
-        axang: Unit axis and angle [ux, uy, uz, theta] with theta in [rad].
-        frames: ``frames[:, :, i]`` is the 4x4 transform ^0T_i.
+    Returns
+    -------
+    x, y, z : float
+        End-effector position in the base frame [m].
+    axang : np.ndarray
+        Unit axis and angle [ux, uy, uz, theta] with theta in [rad].
+    frames : np.ndarray
+        ``frames[:, :, i]`` is the 4x4 transform ^0T_i.
+
     """
     q_arr = np.asarray(q, dtype=float).reshape(-1)
     if q_arr.size != 6:

@@ -8,14 +8,21 @@ import numpy as np
 
 
 def compute_jacobian(frames: np.ndarray, p_tip: Sequence[float]) -> np.ndarray:
-    """Geometric Jacobian at ``p_tip`` using link frames from forward kinematics.
+    """
+    Geometric Jacobian at ``p_tip`` using link frames from forward kinematics.
 
-    Args:
-        frames: ``frames[:, :, i]`` is the 4x4 transform ^0T_{i+1} for ``i`` in 0..5.
-        p_tip: Tool-tip position in the world (base) frame [m], shape (3,).
+    Parameters
+    ----------
+    frames : np.ndarray
+        ``frames[:, :, i]`` is the 4x4 transform ^0T_{i+1} for ``i`` in 0..5.
+    p_tip : Sequence[float]
+        Tool-tip position in the world (base) frame [m], shape (3,).
 
-    Returns:
+    Returns
+    -------
+    np.ndarray
         6x6 Jacobian ``[J_p; J_w]`` for revolute joints.
+
     """
     p_tip = np.asarray(p_tip, dtype=float).reshape(3)
 

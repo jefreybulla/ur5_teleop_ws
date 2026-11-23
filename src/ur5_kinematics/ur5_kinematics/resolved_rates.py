@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
+import math
 from typing import Any, Callable, Mapping, Sequence, Tuple, Union
 
 import numpy as np
@@ -46,7 +46,7 @@ class TrajectoryControlParams:
     w_max: float    # Maximum angular velocity [rad/s]
     lambda_p: float     # Position decay factor
     lambda_w: float     # Orientation decay factor
-    dt: float           # Time step [s]. Must align with frequency at which resolved rates is called
+    dt: float           # Time step [s]. Must match the rate resolved rates is called at
     rho: float = 1e-4   # Singularity robustness parameter
     max_iter: int = 1000
     tool_offset: np.ndarray = field(
@@ -199,19 +199,30 @@ def trajectory_control(
     params: TrajectoryControlParams,
     dirkin_func: DirkinFunc | None = None,
 ) -> Tuple[np.ndarray, bool, int]:
-    """Resolved-rates IK: integrate joint angles toward a desired tool pose.
+    """
+    Resolved-rates IK: integrate joint angles toward a desired tool pose.
 
-    Args:
-        q_start: Starting joint angles [rad], length 6.
-        x_goal: Desired pose with ``p`` (3,) and ``R`` (3x3) or ``n``, ``o``, ``a``.
-        params: Algorithm thresholds, velocity limits, and step size.
-        dirkin_func: Forward kinematics returning ``frames`` (4, 4, 6); defaults to UR5.
+    Parameters
+    ----------
+    q_start : Sequence[float]
+        Starting joint angles [rad], length 6.
+    x_goal : Mapping[str, Any]
+        Desired pose with ``p`` (3,) and ``R`` (3x3) or ``n``, ``o``, ``a``.
+    params : TrajectoryControlParams
+        Algorithm thresholds, velocity limits, and step size.
+    dirkin_func : DirkinFunc | None
+        Forward kinematics returning ``frames`` (4, 4, 6); defaults to UR5.
 
-    Returns:
+    Returns
+    -------
+    Tuple[np.ndarray, bool, int]
         ``q_traj`` with shape (6, num_steps), ``True``, and iteration count.
 
-    Raises:
-        TrajectoryControlError: Goal not reached within ``params.max_iter``.
+    Raises
+    ------
+    TrajectoryControlError
+        Goal not reached within ``params.max_iter``.
+
     """
     if dirkin_func is None:
         dirkin_func = _default_dirkin

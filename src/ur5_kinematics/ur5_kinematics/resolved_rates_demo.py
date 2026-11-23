@@ -5,25 +5,25 @@ from __future__ import annotations
 import math
 from typing import List, Optional
 
-import numpy as np
-import rclpy
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Path
+import numpy as np
+import rclpy
 from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.time import Time
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Empty
-from tf2_ros import Buffer, TransformException, TransformListener   #  used only for drawing the tool path in RViz, not for IK
-from visualization_msgs.msg import Marker
-
-from ur5_kinematics.frame_utils import transform_point
+# TF is used only for drawing the tool path in RViz, not for IK
+from tf2_ros import Buffer, TransformException, TransformListener
 from ur5_kinematics.forward_kinematics import ur5_dirkin
+from ur5_kinematics.frame_utils import transform_point
 from ur5_kinematics.resolved_rates import (
-    TrajectoryControlParams,
     resolved_rates_step,
     tool_pose,
+    TrajectoryControlParams,
 )
+from visualization_msgs.msg import Marker
 
 UR5_JOINT_NAMES = [
     'shoulder_pan_joint',
@@ -83,10 +83,12 @@ class ResolvedRatesDemo(Node):
         self.declare_parameter('goal_frame', 'base')
         self.declare_parameter('tool_frame', 'tool0')
         self.declare_parameter('use_tf_tool_path', True)
-        self.declare_parameter('control_rate_hz', 10.0)     # Frequency at which we compute a new q_new
+        # Frequency at which we compute a new q_new
+        self.declare_parameter('control_rate_hz', 10.0)
         self.declare_parameter('max_ticks', 1000)
-        self.declare_parameter('auto_goal', True)       # # Default IK target: tool pose at HOME_Q, with position += offset in base_link
-        self.declare_parameter('auto_goal_offset', [0.02, 0.0, 0.08])  # [m] Δx, Δy, Δz. 
+        # Default IK target: tool pose at HOME_Q, with position += offset in base_link
+        self.declare_parameter('auto_goal', True)
+        self.declare_parameter('auto_goal_offset', [0.02, 0.0, 0.08])  # [m] Δx, Δy, Δz.
         self.declare_parameter('goal_position', [0.0, 0.0, 0.0])
         self.declare_parameter('use_goal_position_param', False)
         self.declare_parameter('eps_p', 1e-2)
