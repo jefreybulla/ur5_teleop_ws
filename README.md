@@ -76,3 +76,14 @@ ros2 run tf2_ros tf2_echo base tool0
 ```
 
 
+
+## Meta Quest 3 teleoperation (`quest_teleop`)
+
+WebXR page + ROS 2 bridge that streams the Quest 3 controller 6-DoF pose, and a clutched
+teleop node that drives the UR5 with our resolved-rates IK. Testable without the headset
+(`fake_quest` or Meta's Immersive Web Emulator). See [`src/quest_teleop/README.md`](src/quest_teleop/README.md).
+
+```bash
+ros2 launch quest_teleop quest_teleop_sim.launch.py   # RViz + bridge + teleop
+ros2 run quest_teleop fake_quest                      # synthetic controller, no headset
+```

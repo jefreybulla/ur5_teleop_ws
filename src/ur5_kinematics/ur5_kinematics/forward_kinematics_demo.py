@@ -15,7 +15,7 @@ def deg2rad(degrees):
 def main(args=None):
     del args  # ROS2 console_scripts pass unused argv
 
-    q_deg = [20,-100,110,0,0,0]
+    q_deg = [20, -100, 110, 0, 0, 0]
     q = deg2rad(q_deg)
 
     x, y, z, axang, frames = ur5_dirkin(q)
