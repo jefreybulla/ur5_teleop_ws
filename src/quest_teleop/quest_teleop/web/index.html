@@ -40,8 +40,9 @@
 <pre id="pose">no controller pose yet</pre>
 
 <p class="hint">
-  Inside the headset the view is tinted: <b>green</b> = squeeze (grip) held on the right controller
-  (clutch engaged, robot follows), <b>red</b> = WebSocket disconnected (robot will not move).
+  Inside the headset the view is tinted: <b>green</b> = squeeze (grip) held on either controller
+  (clutch engaged for the hand the teleop node uses; add <code>?hand=left</code> or
+  <code>?hand=right</code> to the URL to tint for one hand only), <b>red</b> = WebSocket disconnected (robot will not move).
   Poses are sent in WebXR axes (x right, y up, z back); the ROS bridge converts them to REP-103.
 </p>
 
@@ -167,8 +168,16 @@ function onXRFrame(t, frame) {
   }
 
   // In-headset feedback via a tint (no text rendering needed).
-  const right = msg.controllers.right;
-  const clutch = right && right.buttons && right.buttons[1] && right.buttons[1][0];
+  // Green = squeeze held. By default either hand counts; open the page with ?hand=left
+  // (or ?hand=right) to follow only the hand the teleop node was launched with.
+  const gripHeld = (h) => {
+    const c = msg.controllers[h];
+    return !!(c && c.buttons && c.buttons[1] && c.buttons[1][0]);
+  };
+  const tintHand = new URLSearchParams(location.search).get('hand');
+  const clutch = (tintHand === 'left' || tintHand === 'right')
+    ? gripHeld(tintHand)
+    : (gripHeld('left') || gripHeld('right'));
   const isAR = s.environmentBlendMode && s.environmentBlendMode !== 'opaque';
   const layer = s.renderState.baseLayer;
   gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);

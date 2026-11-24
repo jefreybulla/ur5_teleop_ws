@@ -104,6 +104,17 @@ emulator takes its place.
 Axes: controller -Z (forward) becomes ROS +x, controller +X (right) becomes ROS -y, +Y is up.
 `http://localhost` counts as a secure context, so no certificate is needed here.
 
+Emulator quirks worth knowing (all checked against the topics):
+- The **Rot** fields are in **radians** (use 0.52 for about 30 degrees, 1.57 for 90). Rot X / Y / Z rotate about
+  the WebXR axes: right (pitch), up (yaw), back (roll).
+- **Pos** is relative to the headset, so Pos (0, 0, 0) shows up on `/quest/right/pose` at about
+  (-0.05, 0, 1.58) m (head height plus the grip offset). Only differences matter for teleop.
+- Rotating a controller also moves its grip point by a few cm (the grip is about 5 cm from the rotation pivot).
+  A real wrist does the same.
+- Tested with `scale`, `operator_yaw_deg`, `hand:=left`, AR mode, the workspace limits (reach 0.80 m from the
+  shoulder, floor 0.05 m, 0.15 m cylinder around the base axis) and the stale-data failsafe (clutch opens about
+  0.25 s after the data stops).
+
 ## 3. Real Quest 3 in the lab
 
 WebXR only runs on `https://` or `localhost`. Two options:
@@ -128,8 +139,10 @@ ros2 launch quest_teleop quest_teleop_sim.launch.py port:=8443 \
 ```
 In the Quest Browser open `https://<laptop-ip>:8443/`, accept the certificate warning.
 
-**In the headset:** hold **squeeze** on the right controller to move the arm
-(view tints green); release to freeze and re-grip to reposition your hand
+**In the headset:** hold **squeeze** on the controller the node uses (`hand:=right` by default)
+to move the arm (view tints green for either controller; add `?hand=left` / `?hand=right` to the page URL
+to tint for one hand only). Start the session with the squeeze released: the arm is live as soon as it is held.
+Release to freeze and re-grip to reposition your hand
 (clutching). A red tint means the WebSocket dropped and the robot will not move.
 If "forward" feels rotated, relaunch with `operator_yaw_deg:=90` (or 180, -90).
 
