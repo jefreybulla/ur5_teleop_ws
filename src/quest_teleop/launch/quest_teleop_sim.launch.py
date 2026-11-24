@@ -16,6 +16,13 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument('hand', default_value='right'),
         DeclareLaunchArgument('scale', default_value='1.0'),
         DeclareLaunchArgument('operator_yaw_deg', default_value='0.0'),
+        # Speed limits (defaults match quest_teleop). Raise them only in simulation first.
+        DeclareLaunchArgument('v_max', default_value='0.25',
+                              description='Max tool linear speed [m/s]'),
+        DeclareLaunchArgument('w_max', default_value='1.0',
+                              description='Max tool angular speed [rad/s]'),
+        DeclareLaunchArgument('max_joint_speed', default_value='1.0',
+                              description='Per-joint speed cap [rad/s]'),
     ]
     # Robot model + RViz + idle joint publisher from ur5_kinematics.
     robot_viz = IncludeLaunchDescription(
@@ -38,6 +45,10 @@ def generate_launch_description() -> LaunchDescription:
             'hand': ParameterValue(LaunchConfiguration('hand'), value_type=str),
             'scale': ParameterValue(LaunchConfiguration('scale'), value_type=float),
             'operator_yaw_deg': ParameterValue(LaunchConfiguration('operator_yaw_deg'), value_type=float),
+            'v_max': ParameterValue(LaunchConfiguration('v_max'), value_type=float),
+            'w_max': ParameterValue(LaunchConfiguration('w_max'), value_type=float),
+            'max_joint_speed': ParameterValue(LaunchConfiguration('max_joint_speed'),
+                                              value_type=float),
         }],
     )
     return LaunchDescription(args + [robot_viz, bridge, teleop])

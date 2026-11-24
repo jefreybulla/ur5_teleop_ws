@@ -196,6 +196,8 @@ WebSocket test with `fake_quest`. `colcon test` on both packages reports 17 test
 
 ## Notes
 
+- Speed limits can be set at launch (defaults shown): `ros2 launch quest_teleop quest_teleop_sim.launch.py v_max:=0.25 w_max:=1.0 max_joint_speed:=1.0`. With the defaults the tool orientation lags fast wrist motions (1 rad/s cap); raise `w_max` / `max_joint_speed` in simulation first, and keep them low on the real robot.
+
 - `ur5_kinematics`' `HOME_Q` has `q5 = 0`, a wrist singularity (manipulability ≈ 0;
   see `test_home_pose_singularity_check`). The teleop node starts from
   `[0, -90, 90, -90, -90, 0]` deg instead, so in sim the arm jumps once when teleop takes over.
