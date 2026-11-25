@@ -27,6 +27,7 @@ ros2 run ur5_kinematics forward_kinematics_demo
 ```
 
 ## Online resolved-rates demo in RViz 2
+
 This implementation uses our own FK and IK algorithm. 
 
 Tested using two terminals: RViz stays open, restart motion by re-running servo.
@@ -46,11 +47,13 @@ ros2 run ur5_kinematics resolved_rates_demo
 Stop terminal 2 with Ctrl+C and run the same command again to replay without closing RViz.
 
 One-terminal all-in-one (optional):
+
 ```bash
 ros2 launch ur5_kinematics resolved_rates_demo.launch.py launch_servo:=true
 ```
 
 To test your own end effector goal:
+
 ```bash
 ros2 run ur5_kinematics resolved_rates_demo --ros-args \
   -p use_goal_position_param:=true \
@@ -58,6 +61,7 @@ ros2 run ur5_kinematics resolved_rates_demo --ros-args \
 ```
 
 In RViz, add displays if needed:
+
 - **Path** — topic `/resolved_rates/tool_path`
 - **Marker** — topic `/resolved_rates/goal_marker` (green sphere at the IK goal)
 
@@ -65,6 +69,7 @@ In RViz, add displays if needed:
 
 
 ## Launch UR5 model in RViz 2
+
 ```bash
 ros2 launch ur_description view_ur.launch.py ur_type:=ur5
 ```
@@ -74,8 +79,6 @@ While visualization is open in another terminal window, run the following to obt
 ```bash
 ros2 run tf2_ros tf2_echo base tool0
 ```
-
-
 
 ## Meta Quest 3 teleoperation (`quest_teleop`)
 
@@ -87,3 +90,7 @@ teleop node that drives the UR5 with our resolved-rates IK. Testable without the
 ros2 launch quest_teleop quest_teleop_sim.launch.py   # RViz + bridge + teleop
 ros2 run quest_teleop fake_quest                      # synthetic controller, no headset
 ```
+
+## Connect computer to UR5
+
+Follow these [steps](/UR5-Laptop-Setup_Windows_OS.md) to connect a Windows machine using ROS 2 vis WSL

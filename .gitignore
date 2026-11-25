@@ -54,6 +54,7 @@ rosbag2_*/
 # ==========================================
 .DS_Store
 Thumbs.db
+*:Zone.Identifier
 
 # ==========================================
 # Environment / Secrets
